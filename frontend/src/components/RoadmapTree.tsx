@@ -188,7 +188,7 @@ export const RoadmapTree: React.FC<RoadmapTreeProps> = ({ nodes, onSelectNode, o
             fitViewOptions={{ padding: 0.22 }}
             minZoom={0.3}
             maxZoom={1.5}
-            proOptions={{ hideAttribution: true }}
+            proOptions={{ hideAttribution: false }}
           >
             <Background color="#18181b" gap={24} size={1.2} />
             <Controls className="bg-[#0a0a0a] border-white/10 text-white fill-white stroke-white" />
