@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useId } from 'react';
 import { Target, ScanProfile } from '../types';
-import { createTarget, verifyTarget, checkBackendHealth } from '../api/client';
+import { registerTarget, verifyTarget, checkBackendHealth } from '../api/client';
 import { PROFILES } from '../styles/theme';
 import mascotImage from '../assets/nikspider-mascot.png';
 import {
@@ -111,7 +111,7 @@ export const TargetScreen: React.FC<TargetScreenProps> = ({ onScanReady, onVerif
     setError(null);
 
     try {
-      const created = await createTarget(trimmed);
+      const created = await registerTarget(trimmed);
       setTarget(created);
       setStep(2);
     } catch (err: unknown) {
@@ -119,10 +119,12 @@ export const TargetScreen: React.FC<TargetScreenProps> = ({ onScanReady, onVerif
       if (
         msg.toLowerCase().includes('blocked') ||
         msg.toLowerCase().includes('private') ||
-        msg.toLowerCase().includes('restricted')
+        msg.toLowerCase().includes('restricted') ||
+        msg.toLowerCase().includes('ssrf') ||
+        msg.toLowerCase().includes('loopback')
       ) {
         setError(
-          "This address is blocked by NikSpider's safety guard. Use a publicly reachable domain you own, or enable DEMO_MODE for local targets."
+          "This address is blocked by NikSpider's safety guard. Use a publicly reachable domain you own."
         );
       } else {
         setError(msg);
@@ -567,14 +569,35 @@ export const TargetScreen: React.FC<TargetScreenProps> = ({ onScanReady, onVerif
                   Select Policy Profile Before Launch:
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {(['safe', 'standard', 'aggressive'] as const).map((profId) => {
-                    const prof = PROFILES[profId];
-                    const active = selectedProfile === profId;
+                  {[
+                    {
+                      id: 'safe' as const,
+                      label: 'safe',
+                      budget: '50 requests',
+                      tag: 'Passive only',
+                      description: 'Passive/header checks only.',
+                    },
+                    {
+                      id: 'standard' as const,
+                      label: 'standard',
+                      budget: '500 requests',
+                      tag: '[default]',
+                      description: 'All 13 non-destructive modules.',
+                    },
+                    {
+                      id: 'aggressive' as const,
+                      label: 'aggressive',
+                      budget: '2000 requests',
+                      tag: 'Full suite',
+                      description: 'Full suite autonomous probes.',
+                    },
+                  ].map((p) => {
+                    const active = selectedProfile === p.id;
                     return (
                       <button
-                        key={profId}
+                        key={p.id}
                         type="button"
-                        onClick={() => setSelectedProfile(profId)}
+                        onClick={() => setSelectedProfile(p.id)}
                         className={`p-3.5 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
                           active
                             ? 'bg-purple-600/30 border-purple-400 shadow-[0_0_20px_rgba(168,85,247,0.4)]'
@@ -583,15 +606,17 @@ export const TargetScreen: React.FC<TargetScreenProps> = ({ onScanReady, onVerif
                       >
                         <div>
                           <div className="flex items-center justify-between font-mono text-xs">
-                            <span className="font-bold text-white uppercase">{prof.label}</span>
-                            <span className="text-[11px] text-purple-300">{prof.budget}</span>
+                            <span className="font-bold text-white uppercase">{p.label}</span>
+                            <span className="text-[11px] text-purple-300 font-mono">
+                              ({p.budget})
+                            </span>
                           </div>
                           <p className="text-[11px] text-zinc-400 font-sans mt-1.5 leading-snug">
-                            {prof.description}
+                            {p.description}
                           </p>
                         </div>
                         <div className="mt-2 text-[10px] font-mono text-purple-400">
-                          {prof.moduleCount} Non-destructive Modules
+                          {p.tag}
                         </div>
                       </button>
                     );
@@ -675,6 +700,24 @@ export const TargetScreen: React.FC<TargetScreenProps> = ({ onScanReady, onVerif
                 </div>
               </>
             )}
+          </div>
+        </div>
+
+        {/* Security Guarantees Strip (3 items with purple outline icons) */}
+        <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs text-purple-300/80 font-mono animate-stagger-5">
+          <div className="flex items-center gap-2">
+            <Shield className="w-3.5 h-3.5 text-purple-400" />
+            <span>Ownership-Verified Scans</span>
+          </div>
+          <span className="text-purple-500/40 select-none hidden sm:inline">|</span>
+          <div className="flex items-center gap-2">
+            <Zap className="w-3.5 h-3.5 text-fuchsia-400" />
+            <span>Non-Destructive Probes</span>
+          </div>
+          <span className="text-purple-500/40 select-none hidden sm:inline">|</span>
+          <div className="flex items-center gap-2">
+            <Rocket className="w-3.5 h-3.5 text-purple-400" />
+            <span>AI-Triaged Results</span>
           </div>
         </div>
       </main>
