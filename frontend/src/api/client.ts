@@ -62,6 +62,8 @@ export async function createTarget(url: string): Promise<Target> {
   return { id: data.id, url: data.url || url, token: data.token, verified: Boolean(data.verified) };
 }
 
+export const registerTarget = createTarget;
+
 export async function verifyTarget(targetId: string): Promise<boolean> {
   const res = await fetch(`${API_BASE}/targets/${encodeURIComponent(targetId)}/verify`, {
     method: 'POST',

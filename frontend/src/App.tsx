@@ -670,8 +670,11 @@ export function App() {
   if (!verifiedTarget || !verifiedTarget.verified) {
     return (
       <HomeVerifyGate
-        onVerified={(target) => {
+        onVerified={(target, profile) => {
           setVerifiedTarget(target);
+          if (profile) {
+            setSelectedProfile(profile);
+          }
           setDiscoveredEndpoints(
             new Map([[target.url, { url: target.url, status: 'clean', depth: 0 }]])
           );
