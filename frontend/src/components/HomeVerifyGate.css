@@ -1,0 +1,113 @@
+/* Cyberpunk Homepage Atmosphere & Geometry */
+
+.home-bg-perspective-grid {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 240px;
+  background: 
+    linear-gradient(to bottom, transparent 0%, rgba(168, 85, 247, 0.08) 50%, rgba(168, 85, 247, 0.22) 100%),
+    linear-gradient(90deg, rgba(168, 85, 247, 0.15) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(168, 85, 247, 0.15) 1px, transparent 1px);
+  background-size: 100% 100%, 48px 48px, 48px 48px;
+  transform: perspective(600px) rotateX(65deg);
+  transform-origin: bottom center;
+  pointer-events: none;
+  mask-image: linear-gradient(to top, rgba(0,0,0,1) 20%, transparent 95%);
+  -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,1) 20%, transparent 95%);
+}
+
+/* Floor Horizon Glow Beam */
+.home-horizon-beam {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, rgba(168, 85, 247, 0.4) 20%, #c084fc 50%, rgba(168, 85, 247, 0.4) 80%, transparent 100%);
+  box-shadow: 0 0 35px #a855f7, 0 0 70px #c084fc;
+  pointer-events: none;
+}
+
+/* Left & Right Cybernetic Circuit Traces */
+.cyber-circuit-left,
+.cyber-circuit-right {
+  position: absolute;
+  top: 18%;
+  bottom: 18%;
+  width: 90px;
+  pointer-events: none;
+  opacity: 0.65;
+}
+
+.cyber-circuit-left {
+  left: 12px;
+}
+
+.cyber-circuit-right {
+  right: 12px;
+  transform: scaleX(-1);
+}
+
+/* Central Giant Spider Silhouette in Background */
+.home-spider-backdrop {
+  position: absolute;
+  top: 4%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 920px;
+  max-width: 95vw;
+  height: 520px;
+  pointer-events: none;
+  opacity: 0.38;
+  filter: drop-shadow(0 0 45px rgba(168, 85, 247, 0.55));
+}
+
+/* Mascott Squircle Frame */
+.mascot-squircle-frame {
+  position: relative;
+  border-radius: 28px;
+  background: radial-gradient(circle at center, rgba(168, 85, 247, 0.28) 0%, rgba(12, 5, 26, 0.95) 75%);
+  border: 2px solid rgba(192, 132, 252, 0.7);
+  box-shadow: 
+    0 0 45px rgba(168, 85, 247, 0.6),
+    0 0 90px rgba(168, 85, 247, 0.25),
+    inset 0 0 25px rgba(192, 132, 252, 0.35);
+  transition: transform 300ms ease, box-shadow 300ms ease;
+}
+
+.mascot-squircle-frame:hover {
+  transform: scale(1.02);
+  box-shadow: 
+    0 0 55px rgba(168, 85, 247, 0.8),
+    0 0 110px rgba(168, 85, 247, 0.35),
+    inset 0 0 35px rgba(192, 132, 252, 0.5);
+}
+
+/* Glowing Target Card */
+.home-target-card {
+  position: relative;
+  background: rgba(9, 4, 18, 0.88);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(168, 85, 247, 0.45);
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.9),
+    0 0 40px rgba(168, 85, 247, 0.16),
+    inset 0 1px 0 rgba(216, 180, 254, 0.25);
+  border-radius: 24px;
+}
+
+/* Verify Button Gradient Glow */
+.btn-verify-gradient {
+  background: linear-gradient(135deg, #9333ea 0%, #a855f7 50%, #d946ef 100%);
+  box-shadow: 0 0 28px rgba(168, 85, 247, 0.55), 0 0 8px rgba(217, 70, 239, 0.4);
+  transition: all 250ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-verify-gradient:hover:not(:disabled) {
+  background: linear-gradient(135deg, #a855f7 0%, #c084fc 50%, #e879f9 100%);
+  box-shadow: 0 0 38px rgba(168, 85, 247, 0.8), 0 0 16px rgba(217, 70, 239, 0.6);
+  transform: translateY(-1px);
+}
