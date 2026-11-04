@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import mascotImage from '../assets/nikspider-mascot.png';
+import mascotImage from '../assets/nikspider-dashboard-spider.png';
 import { ScanProfile, TriageResult, Severity } from '../types';
 import { PROFILES } from '../styles/theme';
 import { askSpiderAssistant } from '../api/client';
@@ -44,8 +44,8 @@ export const SPIDER_LEGS: LegModuleCluster[] = [
     shortLabel: 'SQLi',
     fullName: 'SQL Injection Module',
     modules: ['sqli'],
-    topPct: 49,
-    leftPct: 24,
+    topPct: 42,
+    leftPct: 18,
   },
   {
     legIndex: 2,
@@ -53,8 +53,8 @@ export const SPIDER_LEGS: LegModuleCluster[] = [
     shortLabel: 'XSS',
     fullName: 'Cross-Site Scripting Module',
     modules: ['xss'],
-    topPct: 60,
-    leftPct: 19,
+    topPct: 54,
+    leftPct: 13,
   },
   {
     legIndex: 3,
@@ -62,8 +62,8 @@ export const SPIDER_LEGS: LegModuleCluster[] = [
     shortLabel: 'SSRF',
     fullName: 'Server-Side Request Forgery',
     modules: ['ssrf'],
-    topPct: 71,
-    leftPct: 23,
+    topPct: 66,
+    leftPct: 18,
   },
   {
     legIndex: 4,
@@ -71,8 +71,8 @@ export const SPIDER_LEGS: LegModuleCluster[] = [
     shortLabel: 'IDOR/Access',
     fullName: 'Access Control, IDOR & CSRF',
     modules: ['access', 'idor', 'csrf', 'access_control'],
-    topPct: 80,
-    leftPct: 30,
+    topPct: 78,
+    leftPct: 25,
   },
   {
     legIndex: 5,
@@ -80,8 +80,8 @@ export const SPIDER_LEGS: LegModuleCluster[] = [
     shortLabel: 'Session',
     fullName: 'Session & Cookie Security',
     modules: ['session', 'auth'],
-    topPct: 49,
-    leftPct: 76,
+    topPct: 42,
+    leftPct: 82,
   },
   {
     legIndex: 6,
@@ -89,8 +89,8 @@ export const SPIDER_LEGS: LegModuleCluster[] = [
     shortLabel: 'Headers',
     fullName: 'Security Headers & CSP',
     modules: ['headers', 'security_headers'],
-    topPct: 60,
-    leftPct: 81,
+    topPct: 54,
+    leftPct: 87,
   },
   {
     legIndex: 7,
@@ -98,8 +98,8 @@ export const SPIDER_LEGS: LegModuleCluster[] = [
     shortLabel: 'CORS/Click',
     fullName: 'CORS Policy & Clickjacking',
     modules: ['cors', 'clickjacking'],
-    topPct: 71,
-    leftPct: 77,
+    topPct: 66,
+    leftPct: 82,
   },
   {
     legIndex: 8,
@@ -107,8 +107,8 @@ export const SPIDER_LEGS: LegModuleCluster[] = [
     shortLabel: 'Surface',
     fullName: 'Open Redirect, Exposed Files & Cache',
     modules: ['open_redirect', 'exposed_files', 'cache', 'info_disclosure', 'graphql', 'rce'],
-    topPct: 80,
-    leftPct: 70,
+    topPct: 78,
+    leftPct: 75,
   },
 ];
 
@@ -127,32 +127,32 @@ const SEVERITY_EYES: SeverityEyeConfig[] = [
     label: 'Critical Severity Eye',
     color: '#ef4444',
     glowRgba: '239, 68, 68',
-    topPct: 60.2,
-    leftPct: 43.2,
+    topPct: 59.0,
+    leftPct: 47.2,
   },
   {
     id: 'High',
     label: 'High Severity Eye',
     color: '#f59e0b',
     glowRgba: '245, 158, 11',
-    topPct: 62.0,
-    leftPct: 46.8,
+    topPct: 56.7,
+    leftPct: 52.5,
   },
   {
     id: 'Medium',
     label: 'Medium Severity Eye',
     color: '#c084fc',
     glowRgba: '192, 132, 252',
-    topPct: 62.0,
-    leftPct: 53.2,
+    topPct: 64.3,
+    leftPct: 47.1,
   },
   {
     id: 'Low',
     label: 'Low Severity Eye',
     color: '#38bdf8',
     glowRgba: '56, 189, 248',
-    topPct: 60.2,
-    leftPct: 56.8,
+    topPct: 64.3,
+    leftPct: 54.0,
   },
 ];
 
@@ -471,8 +471,8 @@ export const SpiderStatusHero: React.FC<SpiderStatusHeroProps> = ({
                 Interactive Control Surface
               </span>
             </div>
-            <div className="text-[11px] text-zinc-400">
-              Click spider to act · Click legs/eyes to filter · Right-click for menu · Drop FIXED? to retest
+            <div className="text-[11px] text-purple-300/80 font-mono">
+              Autonomous Web Security Agent
             </div>
           </div>
         </div>
@@ -643,10 +643,24 @@ export const SpiderStatusHero: React.FC<SpiderStatusHeroProps> = ({
           <img
             src={mascotImage}
             alt="NikSpider Autonomous Cyber Spider"
-            className="block w-full h-auto"
+            className="block w-full h-auto select-none pointer-events-none"
           />
 
-          {/* Ambient eye & leg glow */}
+          {/* Ambient Cyber Pedestal Ring Glow */}
+          <div
+            className={`pointer-events-none absolute bottom-[2%] left-1/2 -translate-x-1/2 w-[76%] h-[18%] rounded-full mix-blend-screen transition-all duration-700 ${
+              isScanning && !isPaused
+                ? 'shadow-[0_0_55px_rgba(0,217,255,0.7)] opacity-90'
+                : 'shadow-[0_0_30px_rgba(168,85,247,0.4)] opacity-60'
+            }`}
+          />
+
+          {/* Bioluminescent Face Aura & Eye Glow */}
+          <div
+            className={`spider-face-glow ${
+              pulseActive || (isScanning && !isPaused) ? 'pulse-active' : ''
+            }`}
+          />
           <div
             className={`spider-eye-glow ${
               pulseActive || (isScanning && !isPaused) ? 'pulse-active' : ''
@@ -725,6 +739,9 @@ export const SpiderStatusHero: React.FC<SpiderStatusHeroProps> = ({
               glowShadow = '0 0 14px rgba(168, 85, 247, 0.45)';
             }
 
+            const isHovered = hoveredLeg?.legIndex === leg.legIndex;
+            const showFullPill = isSelected || isProbing || confirmed > 0 || isHovered;
+
             return (
               <div
                 key={leg.legIndex}
@@ -739,7 +756,9 @@ export const SpiderStatusHero: React.FC<SpiderStatusHeroProps> = ({
                 }}
                 onMouseEnter={() => setHoveredLeg(leg)}
                 onMouseLeave={() => setHoveredLeg(null)}
-                className={`spider-leg-node px-2 py-0.5 rounded-full border font-mono text-[10px] font-bold flex items-center gap-1.5 ${badgeBg} ${
+                className={`spider-leg-node rounded-full border font-mono text-[10px] font-bold flex items-center transition-all duration-200 ${
+                  showFullPill ? 'px-2 py-0.5 gap-1.5' : 'p-1'
+                } ${badgeBg} ${
                   isProbing ? 'leg-probing' : ''
                 } ${justConfirmed ? 'leg-confirmed-flash' : ''}`}
                 style={{
@@ -747,24 +766,31 @@ export const SpiderStatusHero: React.FC<SpiderStatusHeroProps> = ({
                   left: `${leg.leftPct}%`,
                   boxShadow: glowShadow,
                 }}
+                title={`Leg ${leg.legIndex}: ${leg.fullName}`}
               >
                 <span
-                  className={`w-1.5 h-1.5 rounded-full ${
+                  className={`rounded-full transition-all duration-200 ${
+                    showFullPill ? 'w-1.5 h-1.5' : 'w-2 h-2'
+                  } ${
                     confirmed > 0
                       ? 'bg-red-400 animate-ping'
                       : isProbing
                       ? 'bg-cyan-300 animate-ping'
                       : probes > 0
                       ? 'bg-purple-300'
-                      : 'bg-zinc-500'
+                      : 'bg-cyan-400/80'
                   }`}
                 />
-                <span>L{leg.legIndex}</span>
-                <span className="hidden sm:inline">{leg.shortLabel}</span>
-                {(probes > 0 || confirmed > 0) && (
-                  <span className="text-[9px] opacity-85">
-                    {confirmed > 0 ? `!${confirmed}` : probes}
-                  </span>
+                {showFullPill && (
+                  <>
+                    <span>L{leg.legIndex}</span>
+                    <span className="hidden sm:inline">{leg.shortLabel}</span>
+                    {(probes > 0 || confirmed > 0) && (
+                      <span className="text-[9px] opacity-85">
+                        {confirmed > 0 ? `!${confirmed}` : probes}
+                      </span>
+                    )}
+                  </>
                 )}
               </div>
             );
