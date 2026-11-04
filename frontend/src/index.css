@@ -1,0 +1,37 @@
+@import "tailwindcss";
+@import '@xyflow/react/dist/style.css';
+
+@theme {
+  --color-nik-bg: #090d16;
+  --color-nik-card: #0f172a;
+  --color-nik-border: #1e293b;
+  --color-nik-accent: #38bdf8;
+  --color-nik-red: #ef4444;
+  --color-nik-orange: #f97316;
+  --color-nik-yellow: #eab308;
+  --color-nik-green: #22c55e;
+  --color-nik-purple: #a855f7;
+}
+
+body {
+  background-color: #090d16;
+  color: rgb(241 245 249);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom scrollbar for dark security dashboard */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #090d16;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}

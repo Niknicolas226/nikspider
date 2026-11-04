@@ -1,0 +1,7 @@
+[
+  {"module": "sqli", "url_contains": "/search", "min_severity": "high", "signal_contains": "syntax error"},
+  {"module": "xss", "url_contains": "/search", "min_severity": "high", "signal_contains": "nspmarker"},
+  {"module": "xss", "url_contains": "/profile", "min_severity": "high", "signal_contains": "nspmarker"},
+  {"module": "open_redirect", "url_contains": "/redirect", "min_severity": "medium", "signal_contains": "open redirect"},
+  {"module": "cors", "url_contains": "/api/items", "min_severity": "medium", "signal_contains": "CORS"}
+]

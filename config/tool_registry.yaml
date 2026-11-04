@@ -1,0 +1,86 @@
+# NikSpider Tool Registry
+# Standard remediation advice per module. Used by grounding.py for fix prompts.
+
+sqli:
+  owasp_title: "SQL Injection"
+  owasp_ref: "https://owasp.org/www-project-top-ten/2021/A03_2021-Injection/"
+  fix: "Use parameterized queries (prepared statements) for all database access. Never concatenate user input into SQL strings. Use an ORM with safe defaults."
+  code_example: "# Python with sqlite3:\ncursor.execute('SELECT * FROM items WHERE name LIKE ?', ('%' + query + '%',))"
+
+xss:
+  owasp_title: "Cross-Site Scripting"
+  owasp_ref: "https://owasp.org/www-project-top-ten/2021/A03_2021-Injection/"
+  fix: "HTML-encode all user-controlled output before rendering. Use contextual escaping (HTML, JS, CSS, URL). Set Content-Security-Policy headers."
+  code_example: "# Python:\nfrom markupsafe import escape\nsafe_output = escape(user_input)"
+
+headers:
+  owasp_title: "Missing Security Headers"
+  owasp_ref: "https://owasp.org/www-project-top-ten/2021/A05_2021-Security_Misconfiguration/"
+  fix: "Add Content-Security-Policy, Strict-Transport-Security, X-Frame-Options, X-Content-Type-Options headers to all responses."
+  code_example: "response.headers['X-Content-Type-Options'] = 'nosniff'\nresponse.headers['X-Frame-Options'] = 'DENY'"
+
+cors:
+  owasp_title: "CORS Misconfiguration"
+  owasp_ref: "https://owasp.org/www-project-top-ten/2021/A05_2021-Security_Misconfiguration/"
+  fix: "Allow only specific, trusted origins. Never combine wildcard origins with Access-Control-Allow-Credentials: true."
+  code_example: "ALLOWED_ORIGINS = {'https://app.example.com'}\nif origin in ALLOWED_ORIGINS:\n    response.headers['Access-Control-Allow-Origin'] = origin"
+
+session:
+  owasp_title: "Insecure Session Cookies"
+  owasp_ref: "https://owasp.org/www-project-top-ten/2021/A05_2021-Security_Misconfiguration/"
+  fix: "Set HttpOnly=True, Secure=True, and SameSite=Lax or Strict on all session cookies."
+  code_example: "response.set_cookie('session_id', token, httponly=True, secure=True, samesite='Lax')"
+
+csrf:
+  owasp_title: "Cross-Site Request Forgery"
+  owasp_ref: "https://owasp.org/www-project-top-ten/2021/A01_2021-Broken_Access_Control/"
+  fix: "Add anti-CSRF tokens to all state-changing forms. Set SameSite=Lax on session cookies."
+  code_example: "<input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token }}\">"
+
+idor:
+  owasp_title: "Insecure Direct Object Reference"
+  owasp_ref: "https://owasp.org/www-project-top-ten/2021/A01_2021-Broken_Access_Control/"
+  fix: "Verify object ownership on every request. Return 404 (not 403) for objects the caller does not own."
+  code_example: "if obj.owner_id != current_user.id:\n    abort(404)"
+
+ssrf:
+  owasp_title: "Server-Side Request Forgery"
+  owasp_ref: "https://owasp.org/www-project-top-ten/2021/A10_2021-Server-Side_Request_Forgery_(SSRF)/"
+  fix: "Allowlist outbound destinations. Block private, loopback, and metadata IP ranges at the network layer."
+  code_example: "import ipaddress\ndef is_public(url):\n    ip = ipaddress.ip_address(socket.gethostbyname(urlparse(url).hostname))\n    return not ip.is_private"
+
+security_headers:
+  owasp_title: "Missing Security Headers"
+  owasp_ref: "https://owasp.org/www-project-top-ten/2021/A05_2021-Security_Misconfiguration/"
+  fix: "Add Content-Security-Policy, Referrer-Policy, and Permissions-Policy headers to all responses."
+  code_example: "response.headers['Content-Security-Policy'] = \"default-src 'self'\""
+
+clickjacking:
+  owasp_title: "Clickjacking"
+  owasp_ref: "https://owasp.org/www-project-top-ten/2021/A05_2021-Security_Misconfiguration/"
+  fix: "Set X-Frame-Options: DENY or Content-Security-Policy: frame-ancestors 'self' on all pages."
+  code_example: "response.headers['X-Frame-Options'] = 'DENY'"
+
+exposed_files:
+  owasp_title: "Exposed Sensitive Files"
+  owasp_ref: "https://owasp.org/www-project-top-ten/2021/A05_2021-Security_Misconfiguration/"
+  fix: "Block access to sensitive paths at the web server level. Disable directory listing and debug endpoints in production."
+  code_example: "# Nginx:\nlocation ~ /\\.(git|env|svn) { deny all; return 404; }"
+
+open_redirect:
+  owasp_title: "Open Redirect"
+  owasp_ref: "https://owasp.org/www-project-top-ten/2021/A01_2021-Broken_Access_Control/"
+  fix: "Validate redirect targets against an allowlist of relative paths or known hosts. Use indirect references."
+  code_example: "ALLOWED_HOSTS = {'example.com', 'app.example.com'}\nif urlparse(next_url).netloc not in ALLOWED_HOSTS:\n    next_url = '/'"
+
+cache:
+  owasp_title: "Web Cache Poisoning"
+  owasp_ref: "https://owasp.org/www-project-top-ten/2021/A05_2021-Security_Misconfiguration/"
+  fix: "Do not reflect unkeyed request headers in cacheable responses. Include reflected inputs in the cache key."
+  code_example: "response.headers['Vary'] = 'X-Forwarded-Host, Origin'"
+
+access:
+  owasp_title: "Broken Access Control"
+  owasp_ref: "https://owasp.org/www-project-top-ten/2021/A01_2021-Broken_Access_Control/"
+  fix: "Implement server-side authorization checks for every resource endpoint. Deny by default."
+  code_example: "@require_auth\ndef get_resource(id):\n    resource = db.get(id)\n    if resource.owner_id != current_user.id:\n        raise HTTPException(403)"

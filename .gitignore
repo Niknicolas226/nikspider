@@ -1,0 +1,73 @@
+# Environment & Secrets
+.env
+*.env
+.env.local
+.env.*.local
+.nikspider-token
+
+# Python Cache & Virtualenv
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+**/build/
+develop-eggs/
+dist/
+**/dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing & Coverage
+.pytest_cache/
+**/pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Node & Frontend
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.eslintcache
+.stylelintcache
+
+# Databases & Runtime State
+*.db
+*.sqlite
+*.sqlite3
+data.db
+nikspider.db
+demo.db
+crawl_map.json
+cli_out.json
+verification_report.json
+
+# Logs & OS artifacts
+*.log
+logs/
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

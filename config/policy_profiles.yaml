@@ -1,0 +1,76 @@
+# NikSpider Policy Profiles
+# Defines scan budgets, allowed modules, and rate limits per profile.
+# Used by stage0_intake_guard/policy.py
+
+profiles:
+  safe:
+    description: "Minimal, non-invasive scan. Safe for production."
+    max_requests: 50
+    max_depth: 1
+    max_pages: 20
+    allowed_methods:
+      - GET
+      - HEAD
+      - OPTIONS
+    allowed_modules:
+      - headers
+      - security_headers
+      - clickjacking
+      - cors
+      - exposed_files
+    rate_limit_rps: 1
+
+  standard:
+    description: "Balanced scan for most targets."
+    max_requests: 500
+    max_depth: 3
+    max_pages: 200
+    allowed_methods:
+      - GET
+      - HEAD
+      - OPTIONS
+      - POST
+    allowed_modules:
+      - sqli
+      - xss
+      - headers
+      - cors
+      - session
+      - csrf
+      - idor
+      - ssrf
+      - security_headers
+      - clickjacking
+      - exposed_files
+      - open_redirect
+      - cache
+    rate_limit_rps: 5
+
+  aggressive:
+    description: "Deep, comprehensive scan with higher limits."
+    max_requests: 2000
+    max_depth: 5
+    max_pages: 500
+    allowed_methods:
+      - GET
+      - HEAD
+      - OPTIONS
+      - POST
+      - PUT
+      - DELETE
+      - PATCH
+    allowed_modules:
+      - sqli
+      - xss
+      - headers
+      - cors
+      - session
+      - csrf
+      - idor
+      - ssrf
+      - security_headers
+      - clickjacking
+      - exposed_files
+      - open_redirect
+      - cache
+    rate_limit_rps: 10
