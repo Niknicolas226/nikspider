@@ -3,6 +3,7 @@ import {
   scanStore,
   useScanStore,
   getInitialStepFromHash,
+  parseHashRoute,
 } from '../store/scanStore';
 import {
   getRoadmap,
@@ -30,10 +31,17 @@ export function useScanStream() {
   const isIntentionalCloseRef = useRef<boolean>(false);
 
   // ═══════════════════════════════════════════════════════════════════
-  // 1. URL HASH SYNC (Forward & Backward Navigation via #/step/X)
+  // 1. URL HASH SYNC (Forward & Backward Navigation via #/scan/:id/step/X or #/step/X)
   // ═══════════════════════════════════════════════════════════════════
   useEffect(() => {
     const handleHashChange = () => {
+      const { scanId: hashScanId } = parseHashRoute();
+      if (hashScanId && !scanStore.getState().scanId) {
+        scanStore.dispatch({
+          type: 'START_SCAN_SUCCESS',
+          payload: { scanId: hashScanId },
+        });
+      }
       const targetStep = getInitialStepFromHash(scanStore.getState().furthestStep);
       if (targetStep !== scanStore.getState().currentStep) {
         scanStore.dispatch({ type: 'GO_TO_STEP', payload: targetStep });
@@ -52,13 +60,16 @@ export function useScanStream() {
   // Sync state changes to hash
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      const activeScanId = scanStore.getState().scanId;
       const currentHash = window.location.hash;
-      const expectedHash = `#/step/${currentStep}`;
+      const expectedHash = activeScanId
+        ? `#/scan/${activeScanId}/step/${currentStep}`
+        : `#/step/${currentStep}`;
       if (currentHash !== expectedHash) {
         window.history.replaceState(null, '', expectedHash);
       }
     }
-  }, [currentStep]);
+  }, [currentStep, scanId]);
 
   // ═══════════════════════════════════════════════════════════════════
   // 2. LIVE DURATION TIMER (starts at scan start, stops at roadmap_ready)

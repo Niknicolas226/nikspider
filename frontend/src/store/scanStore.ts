@@ -90,6 +90,7 @@ export type ScanAction =
       };
     }
   | { type: 'GO_TO_STEP'; payload: StepId }
+  | { type: 'UNLOCK_STEP'; payload: StepId }
   | { type: 'SET_SSE_STATUS'; payload: 'connected' | 'reconnecting' | 'disconnected' }
   | { type: 'SET_BACKEND_ONLINE'; payload: boolean }
   | { type: 'UPDATE_DURATION'; payload: number }
@@ -100,15 +101,33 @@ export type ScanAction =
 
 const SESSION_KEY = 'nikspider_scan_session';
 
+export function parseHashRoute(hashString?: string): { step: StepId | null; scanId: string | null } {
+  const hash = hashString ?? (typeof window !== 'undefined' ? window.location.hash : '');
+  if (!hash) return { step: null, scanId: null };
+
+  const scanStepMatch = hash.match(/#\/?scan\/([^/]+)\/step\/([1-6])/i);
+  if (scanStepMatch) {
+    return {
+      scanId: decodeURIComponent(scanStepMatch[1]),
+      step: parseInt(scanStepMatch[2], 10) as StepId,
+    };
+  }
+
+  const stepMatch = hash.match(/#\/?step\/([1-6])/i);
+  if (stepMatch) {
+    return {
+      scanId: null,
+      step: parseInt(stepMatch[1], 10) as StepId,
+    };
+  }
+
+  return { step: null, scanId: null };
+}
+
 export function getInitialStepFromHash(furthestStep: StepId): StepId {
-  if (typeof window === 'undefined') return 1;
-  const hash = window.location.hash;
-  const match = hash.match(/#\/?step\/([1-6])/);
-  if (match) {
-    const parsed = parseInt(match[1], 10) as StepId;
-    if (parsed >= 1 && parsed <= 6 && parsed <= furthestStep) {
-      return parsed;
-    }
+  const { step } = parseHashRoute();
+  if (step !== null && step >= 1 && step <= 6 && step <= furthestStep) {
+    return step;
   }
   return 1;
 }
@@ -621,6 +640,21 @@ export function scanReducer(state: ScanState, action: ScanAction): ScanState {
             `Retest result: ${status.toUpperCase()} (${findingId.slice(0, 8)}). ${message}`
           ),
         ],
+      };
+    }
+
+    case 'UNLOCK_STEP': {
+      const stepToUnlock = action.payload;
+      const currentStatus = state.steps[stepToUnlock];
+      const newStatus = currentStatus === 'locked' ? 'active' : currentStatus;
+      const newFurthest = Math.max(state.furthestStep, stepToUnlock) as StepId;
+      return {
+        ...state,
+        furthestStep: newFurthest,
+        steps: {
+          ...state.steps,
+          [stepToUnlock]: newStatus,
+        },
       };
     }
 

@@ -62,6 +62,41 @@ export interface RoadmapNode {
   status: 'open' | 'fixed';
   finding_ids: string[];
   children?: RoadmapNode[];
+  effort?: 'S' | 'M' | 'L';
+  blocks?: string[];
+  impact_score?: number;
+  fixed_at?: string | null;
+  retest_history?: Array<{
+    timestamp: string;
+    passed: boolean;
+    status: string;
+    finding_id?: string;
+    message?: string;
+  }>;
+}
+
+export interface DebateJudge {
+  verdict: TriageVerdict | string;
+  severity: Severity;
+  owasp: string;
+  confidence: number;
+  reason: string;
+  evidence_quote?: string;
+}
+
+export interface DebateTranscript {
+  finding_id: string;
+  module?: string;
+  url?: string;
+  param?: string;
+  prosecutor: string;
+  defender: string;
+  judge: DebateJudge;
+  enforcement_overrides: string[];
+  rule_check?: string;
+  pros: string[];
+  cons: string[];
+  evidence: FindingEvidence;
 }
 
 export interface RoadmapResponse {

@@ -506,6 +506,79 @@ async def get_requests(scan_id: str):
     return logs
 
 
+@api.get("/findings/{finding_id}/debate")
+async def get_finding_debate(finding_id: str):
+    """Get the full debate transcript, judge output, and enforcement rules for a finding."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        """SELECT f.id, f.url, f.module, f.param, f.request, f.response, f.signal, f.status, f.extra,
+                  t.agent_a, t.agent_b, t.verdict, t.severity, t.owasp, t.confidence,
+                  t.reason, t.evidence_quote, t.source
+           FROM findings f
+           LEFT JOIN triage t ON t.finding_id = f.id
+           WHERE f.id = ?""",
+        (finding_id,)
+    )
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Finding not found")
+
+    row_dict = dict(row)
+    extra = {}
+    if row_dict.get("extra"):
+        try:
+            extra = json.loads(row_dict["extra"]) if isinstance(row_dict["extra"], str) else row_dict["extra"]
+        except Exception:
+            extra = {}
+
+    reasoning = extra.get("reasoning", {}) if isinstance(extra, dict) else {}
+    arguments = extra.get("arguments", {}) if isinstance(extra, dict) else {}
+
+    prosecutor = row_dict.get("agent_a") or reasoning.get("argumenter") or arguments.get("prosecutor") or ""
+    defender = row_dict.get("agent_b") or reasoning.get("opposer") or arguments.get("defender") or ""
+
+    rule_check = reasoning.get("rule_check") or ""
+    enforcement_overrides = []
+    if rule_check and str(rule_check).strip().upper() not in ("PASS", "NONE", ""):
+        enforcement_overrides.append(str(rule_check).strip())
+    if reasoning.get("enforcement_rule"):
+        enforcement_overrides.append(str(reasoning.get("enforcement_rule")).strip())
+
+    judge_data = {
+        "verdict": row_dict.get("verdict") or reasoning.get("verdict") or "unknown",
+        "severity": row_dict.get("severity") or reasoning.get("severity") or "Medium",
+        "owasp": row_dict.get("owasp") or reasoning.get("owasp") or "",
+        "confidence": float(row_dict.get("confidence") or reasoning.get("confidence") or 0.0),
+        "reason": row_dict.get("reason") or reasoning.get("reason") or "",
+        "evidence_quote": row_dict.get("evidence_quote") or reasoning.get("evidence_quote") or row_dict.get("signal") or "",
+    }
+
+    pros = reasoning.get("pros") or []
+    cons = reasoning.get("cons") or []
+
+    return {
+        "finding_id": row_dict["id"],
+        "module": row_dict.get("module"),
+        "url": row_dict.get("url"),
+        "param": row_dict.get("param"),
+        "prosecutor": prosecutor,
+        "defender": defender,
+        "judge": judge_data,
+        "enforcement_overrides": enforcement_overrides,
+        "rule_check": rule_check,
+        "pros": pros,
+        "cons": cons,
+        "evidence": {
+            "request": row_dict.get("request") or "",
+            "response_excerpt": row_dict.get("response") or "",
+            "signal": row_dict.get("signal") or "",
+        },
+    }
+
+
 @api.post("/findings/{finding_id}/retest")
 async def retest_finding(finding_id: str):
     """Retest a specific finding."""
@@ -535,50 +608,60 @@ async def retest_finding(finding_id: str):
 
     passed = result.get("status") == "fixed"
     status = result.get("status", "unknown")
+    now_iso = datetime.now(timezone.utc).isoformat()
 
-    # On success, mark matching roadmap nodes as fixed and recompute the
-    # scan risk score so the persisted roadmap reflects the fix.
-    if passed:
-        try:
-            conn = get_db()
-            scan_id_db = finding_dict.get("scan_id", "")
-            with conn:
+    # Mark matching roadmap nodes as fixed or record retest attempt
+    try:
+        conn = get_db()
+        scan_id_db = finding_dict.get("scan_id", "")
+        with conn:
+            if passed:
                 conn.execute("UPDATE findings SET status = 'fixed' WHERE id = ?", (finding_id,))
-                if scan_id_db:
-                    rows = conn.execute(
-                        "SELECT id, json FROM roadmap_nodes WHERE scan_id = ?", (scan_id_db,)
-                    ).fetchall()
-                    for r in rows:
-                        try:
-                            node_data = json.loads(r["json"])
-                        except Exception:
-                            continue
-                        if finding_id in node_data.get("finding_ids", []):
+            if scan_id_db:
+                rows = conn.execute(
+                    "SELECT id, json FROM roadmap_nodes WHERE scan_id = ?", (scan_id_db,)
+                ).fetchall()
+                for r in rows:
+                    try:
+                        node_data = json.loads(r["json"])
+                    except Exception:
+                        continue
+                    if finding_id in node_data.get("finding_ids", []):
+                        history = node_data.setdefault("retest_history", [])
+                        history.append({
+                            "timestamp": now_iso,
+                            "passed": passed,
+                            "status": status,
+                            "finding_id": finding_id,
+                            "message": result.get("message", ""),
+                        })
+                        if passed:
                             node_data["status"] = "fixed"
-                            conn.execute(
-                                "UPDATE roadmap_nodes SET status = 'fixed', json = ? WHERE id = ?",
-                                (json.dumps(node_data, default=str), r["id"]),
-                            )
-                    # Recompute risk score from remaining open nodes
-                    from nikspider.stage5_report.roadmap import calculate_risk_score as calc_score
-                    score_rows = conn.execute(
-                        "SELECT json FROM roadmap_nodes WHERE scan_id = ?", (scan_id_db,)
-                    ).fetchall()
-                    nodes_open = []
-                    for r in score_rows:
-                        try:
-                            nd = json.loads(r["json"])
-                        except Exception:
-                            continue
-                        nodes_open.append(nd)
-                    new_score = calc_score(nodes_open)
-                    conn.execute(
-                        "UPDATE scans SET risk_score = ? WHERE id = ?", (new_score, scan_id_db)
-                    )
-                    result["score"] = new_score
-            conn.close()
-        except Exception:
-            pass
+                            node_data["fixed_at"] = now_iso
+                        conn.execute(
+                            "UPDATE roadmap_nodes SET status = ?, json = ? WHERE id = ?",
+                            (node_data.get("status", "open"), json.dumps(node_data, default=str), r["id"]),
+                        )
+                # Recompute risk score from remaining open nodes
+                from nikspider.stage5_report.roadmap import calculate_risk_score as calc_score
+                score_rows = conn.execute(
+                    "SELECT json FROM roadmap_nodes WHERE scan_id = ?", (scan_id_db,)
+                ).fetchall()
+                nodes_open = []
+                for r in score_rows:
+                    try:
+                        nd = json.loads(r["json"])
+                    except Exception:
+                        continue
+                    nodes_open.append(nd)
+                new_score = calc_score(nodes_open)
+                conn.execute(
+                    "UPDATE scans SET risk_score = ? WHERE id = ?", (new_score, scan_id_db)
+                )
+                result["score"] = new_score
+        conn.close()
+    except Exception:
+        pass
 
     return {"passed": passed, "status": status, "message": result.get("message", ""), "score": result.get("score")}
 

@@ -80,6 +80,15 @@ def _infer_finding_ids(node: dict, findings: list[Finding]) -> list[str]:
     return [findings[0].id] if findings else []
 
 
+def _calculate_effort(mod: str, sev: str, count: int) -> str:
+    """Classify remediation effort as S, M, or L."""
+    if mod in ("security_headers", "cors", "clickjacking", "exposed_files") and count <= 2:
+        return "S"
+    if sev in ("Critical", "High") or count > 3:
+        return "L"
+    return "M"
+
+
 def _fallback_nodes(confirmed_findings: list[Finding]) -> list[dict]:
     """Deterministic grouping by module when no LLM grouping is available."""
     from nikspider.stage5_report.roadmap_fixes import SITE_CHECK_FIX, DEFAULT_FIX
@@ -93,6 +102,8 @@ def _fallback_nodes(confirmed_findings: list[Finding]) -> list[dict]:
         issue, sev, owasp, root_cause, fix_steps, code_ex, verify = SITE_CHECK_FIX.get(
             mod, DEFAULT_FIX
         )
+        impact = SEVERITY_WEIGHTS.get(sev, 8) * max(1, len(mod_findings))
+        effort = _calculate_effort(mod, sev, len(mod_findings))
         nodes.append({
             "id": f"node-{mod}-{uuid.uuid4().hex[:8]}",
             "issue": issue,
@@ -107,6 +118,11 @@ def _fallback_nodes(confirmed_findings: list[Finding]) -> list[dict]:
             "status": "open",
             "finding_ids": [f.id for f in mod_findings],
             "children": [],
+            "effort": effort,
+            "blocks": [],
+            "impact_score": impact,
+            "fixed_at": None,
+            "retest_history": [],
         })
     return nodes
 
@@ -143,6 +159,13 @@ async def generate_roadmap(
         key=lambda n: (SEVERITY_ORDER.get(n.get("severity", "Medium"), 99),
                        -n.get("resolves_count", 1))
     )
+
+    # Establish dependency links if not already set
+    for i, n in enumerate(nodes):
+        if not n.get("blocks") and i + 1 < len(nodes):
+            # Higher priority / foundation issues block subsequent dependent nodes
+            n["blocks"] = [nodes[j]["id"] for j in range(i + 1, min(i + 3, len(nodes)))]
+
     return nodes, calculate_risk_score(nodes)
 
 
@@ -209,6 +232,8 @@ async def _llm_grouping(
         raw_sev = str(item.get("severity", "Medium")).strip().capitalize()
         if raw_sev not in SEVERITY_ORDER:
             raw_sev = "Medium"
+        impact = SEVERITY_WEIGHTS.get(raw_sev, 8) * max(1, len(finding_ids))
+        effort = item.get("effort") or _calculate_effort("generic", raw_sev, len(finding_ids))
         nodes.append({
             "id": f"{item.get('id') or 'node'}-{uuid.uuid4().hex[:8]}",
             "issue": str(item.get("issue", "Security Fix Node")),
@@ -223,5 +248,10 @@ async def _llm_grouping(
             "status": "open",
             "finding_ids": finding_ids,
             "children": item.get("children", []),
+            "effort": effort,
+            "blocks": item.get("blocks", []),
+            "impact_score": impact,
+            "fixed_at": None,
+            "retest_history": [],
         })
     return nodes

@@ -1,4 +1,12 @@
-import { Target, RoadmapResponse, RequestLogEntry, SSEEvent, ScanProfile, RetestApiResult } from '../types';
+import {
+  Target,
+  RoadmapResponse,
+  RequestLogEntry,
+  SSEEvent,
+  ScanProfile,
+  RetestApiResult,
+  DebateTranscript,
+} from '../types';
 
 const RAW_API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 const API_BASE = import.meta.env.DEV ? '/api/v2' : `${RAW_API_URL || 'http://localhost:8000'}/api/v2`;
@@ -221,4 +229,17 @@ export async function askSpiderAssistant(
     throw new Error('Failed to query Spider AI assistant');
   }
   return await res.json();
+}
+
+export async function getFindingDebate(findingId: string): Promise<DebateTranscript | null> {
+  try {
+    const res = await fetch(`${API_BASE}/findings/${encodeURIComponent(findingId)}/debate`);
+    if (!res.ok) {
+      return null;
+    }
+    const data = await res.json();
+    return data as DebateTranscript;
+  } catch {
+    return null;
+  }
 }
