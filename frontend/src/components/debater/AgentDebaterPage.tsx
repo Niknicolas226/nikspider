@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useScanStore, scanStore } from '../../store/scanStore';
 import { TriageResult } from '../../types';
+import { getScanFindings } from '../../api/client';
 import { FindingsList } from './FindingsList';
 import { DebateThread } from './DebateThread';
 import { VerdictCard } from './VerdictCard';
@@ -24,11 +25,24 @@ export const AgentDebaterPage: React.FC = () => {
   const isStepRunning = steps[4] === 'running';
   const isStepDone = steps[4] === 'done';
 
-  // Next is enabled when triage is finished (or step 5 is unlocked / done)
-  const isTriageFinished = isStepDone || steps[5] !== 'locked';
+  // Next is enabled when triage is finished (or step 5 is unlocked / done, or findings are present)
+  const isTriageFinished = isStepDone || steps[5] !== 'locked' || verdicts.length > 0;
 
   // Selected finding state
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (scanId && verdicts.length === 0) {
+      getScanFindings(scanId).then((items) => {
+        if (items && items.length > 0) {
+          scanStore.dispatch({ type: 'SET_VERDICTS', payload: items });
+          if (!selectedFindingId) {
+            setSelectedFindingId(items[0].id);
+          }
+        }
+      });
+    }
+  }, [scanId, verdicts.length, selectedFindingId]);
 
   useEffect(() => {
     if (verdicts.length > 0 && !selectedFindingId) {

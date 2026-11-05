@@ -77,6 +77,7 @@ export type ScanAction =
   | { type: 'START_SCAN_ERROR'; payload: string }
   | { type: 'SSE_EVENT'; payload: SSEEvent }
   | { type: 'SET_ROADMAP'; payload: RoadmapResponse }
+  | { type: 'SET_VERDICTS'; payload: TriageResult[] }
   | { type: 'SET_REQUESTS'; payload: RequestLogEntry[] }
   | {
       type: 'RETEST_RESULT';
@@ -125,9 +126,11 @@ export function parseHashRoute(hashString?: string): { step: StepId | null; scan
 }
 
 export function getInitialStepFromHash(furthestStep: StepId): StepId {
-  const { step } = parseHashRoute();
-  if (step !== null && step >= 1 && step <= 6 && step <= furthestStep) {
-    return step;
+  const { step, scanId } = parseHashRoute();
+  if (step !== null && step >= 1 && step <= 6) {
+    if (step <= furthestStep || scanId) {
+      return step;
+    }
   }
   return 1;
 }
@@ -143,7 +146,12 @@ export function createInitialState(savedTargetId?: string, savedTargetUrl?: stri
     }
   }
 
-  const initialFurthest: StepId = (savedSession?.furthestStep as StepId) || 1;
+  const { step: hashStep, scanId: hashScanId } = parseHashRoute();
+  const activeScanId = hashScanId || savedSession?.scanId || null;
+  const initialFurthest: StepId = Math.max(
+    (savedSession?.furthestStep as StepId) || 1,
+    hashStep && activeScanId ? hashStep : 1
+  ) as StepId;
   const initialCurrent: StepId =
     getInitialStepFromHash(initialFurthest) || (savedSession?.currentStep as StepId) || 1;
 
@@ -160,6 +168,18 @@ export function createInitialState(savedTargetId?: string, savedTargetUrl?: stri
     for (const key of [1, 2, 3, 4, 5, 6] as StepId[]) {
       if (savedSession.steps[key]) {
         stepsDefault[key] = savedSession.steps[key];
+      }
+    }
+  }
+
+  // If a scan was previously saved or hash indicates an active step, unlock prior steps
+  if (activeScanId) {
+    const maxUnlocked = Math.max(initialFurthest, initialCurrent);
+    for (let s = 1; s <= maxUnlocked; s++) {
+      if (s < maxUnlocked) {
+        stepsDefault[s as StepId] = 'done';
+      } else if (stepsDefault[s as StepId] === 'locked') {
+        stepsDefault[s as StepId] = 'active';
       }
     }
   }
@@ -560,7 +580,7 @@ export function scanReducer(state: ScanState, action: ScanAction): ScanState {
     case 'SET_ROADMAP': {
       const rm = action.payload;
       const confirmed = rm.confirmed_count ?? state.kpis.confirmed;
-      const highSev = rm.nodes.filter(
+      const highSev = (rm.nodes || []).filter(
         (n) => n.status === 'open' && (n.severity === 'Critical' || n.severity === 'High')
       ).length;
 
@@ -573,6 +593,24 @@ export function scanReducer(state: ScanState, action: ScanAction): ScanState {
         kpis: {
           ...state.kpis,
           riskScore: rm.score,
+          confirmed: Math.max(state.kpis.confirmed, confirmed),
+          highSeverity: Math.max(state.kpis.highSeverity, highSev),
+        },
+      };
+    }
+
+    case 'SET_VERDICTS': {
+      const verdicts = action.payload;
+      const confirmed = verdicts.filter((v) => v.verdict === 'confirmed').length;
+      const highSev = verdicts.filter(
+        (v) => v.verdict === 'confirmed' && (v.severity === 'Critical' || v.severity === 'High')
+      ).length;
+
+      return {
+        ...state,
+        verdicts,
+        kpis: {
+          ...state.kpis,
           confirmed: Math.max(state.kpis.confirmed, confirmed),
           highSeverity: Math.max(state.kpis.highSeverity, highSev),
         },

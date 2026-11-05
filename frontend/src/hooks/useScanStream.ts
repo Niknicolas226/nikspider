@@ -8,6 +8,7 @@ import {
 import {
   getRoadmap,
   getRequestLogs,
+  getScanFindings,
   checkBackendHealth,
 } from '../api/client';
 import { SSEEvent } from '../types';
@@ -93,15 +94,19 @@ export function useScanStream() {
   // ═══════════════════════════════════════════════════════════════════
   const reconcileSnapshot = useCallback(async (activeScanId: string) => {
     try {
-      const [rm, reqs] = await Promise.all([
+      const [rm, reqs, fnd] = await Promise.all([
         getRoadmap(activeScanId).catch(() => null),
         getRequestLogs(activeScanId).catch(() => null),
+        getScanFindings(activeScanId).catch(() => null),
       ]);
       if (rm && rm.nodes) {
         scanStore.dispatch({ type: 'SET_ROADMAP', payload: rm });
       }
       if (reqs && Array.isArray(reqs)) {
         scanStore.dispatch({ type: 'SET_REQUESTS', payload: reqs });
+      }
+      if (fnd && Array.isArray(fnd) && fnd.length > 0) {
+        scanStore.dispatch({ type: 'SET_VERDICTS', payload: fnd });
       }
     } catch {
       // non-fatal

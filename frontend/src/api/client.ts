@@ -6,6 +6,7 @@ import {
   ScanProfile,
   RetestApiResult,
   DebateTranscript,
+  TriageResult,
 } from '../types';
 
 const RAW_API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
@@ -229,6 +230,45 @@ export async function askSpiderAssistant(
     throw new Error('Failed to query Spider AI assistant');
   }
   return await res.json();
+}
+
+export async function getScanFindings(scanId: string): Promise<TriageResult[]> {
+  try {
+    const res = await fetch(`${API_BASE}/scans/${encodeURIComponent(scanId)}/findings`);
+    if (!res.ok) {
+      return [];
+    }
+    const data = await res.json();
+    const rawList = Array.isArray(data) ? data : data.findings || [];
+    return rawList.map((item: any) => {
+      const rawV = (item.verdict || 'confirmed').toLowerCase().trim();
+      const verdict = rawV === 'benign' ? 'rejected' : rawV === 'inconclusive' ? 'needs_more_evidence' : rawV;
+      return {
+        id: item.id,
+        module: item.module || 'probe',
+        url: item.url || '/',
+        param: item.param || '',
+        verdict,
+        severity: (item.severity ? item.severity.charAt(0).toUpperCase() + item.severity.slice(1).toLowerCase() : 'Medium') as any,
+        owasp: item.owasp || 'A03:2021-Injection',
+        confidence: typeof item.confidence === 'number' ? item.confidence : 0.85,
+        reason: item.reason || 'Adversarial deliberation consensus.',
+        evidence_quote: item.evidence_quote || item.signal || '',
+        rule_check: item.rule_check || item.rules_applied?.[0] || 'PASS',
+        agent_a: item.agent_a || item.prosecutor || item.severity_case || '',
+        agent_b: item.agent_b || item.defender || item.mitigating_factors || '',
+        pros: item.pros || [],
+        cons: item.cons || [],
+        evidence: item.evidence || {
+          request: item.request || '',
+          response_excerpt: item.response || '',
+          signal: item.signal || '',
+        },
+      };
+    });
+  } catch {
+    return [];
+  }
 }
 
 export async function getFindingDebate(findingId: string): Promise<DebateTranscript | null> {

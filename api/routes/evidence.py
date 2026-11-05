@@ -310,6 +310,8 @@ async def get_scan_findings(scan_id: str):
 
             args = extra.get("arguments") or build_finding_arguments(d, d, ev_id)
             sev = str(d.get("severity") or "medium").lower()
+            prosecutor = d.get("agent_a") or args.get("severity_case", "")
+            defender = d.get("agent_b") or args.get("mitigating_factors", "")
             findings_out.append({
                 "id": fid,
                 "scan_id": scan_id,
@@ -327,6 +329,19 @@ async def get_scan_findings(scan_id: str):
                 "reason": d.get("reason") or "",
                 "request": d.get("request") or "",
                 "response": d.get("response") or "",
+                "agent_a": prosecutor,
+                "agent_b": defender,
+                "prosecutor": prosecutor,
+                "defender": defender,
+                "evidence_quote": d.get("evidence_quote") or d.get("signal") or "",
+                "rule_check": extra.get("rule_check") or "",
+                "pros": extra.get("reasoning", {}).get("pros", []),
+                "cons": extra.get("reasoning", {}).get("cons", []),
+                "evidence": {
+                    "request": d.get("request") or "",
+                    "response_excerpt": d.get("response") or "",
+                    "signal": d.get("signal") or "",
+                },
                 "severity_case": args.get("severity_case", ""),
                 "mitigating_factors": args.get("mitigating_factors", ""),
                 "neutral_summary": args.get("neutral_summary", ""),

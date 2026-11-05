@@ -473,6 +473,14 @@ async def get_roadmap(scan_id: str):
                 node_data = {}
             node_data["id"] = r["id"]
             node_data["status"] = r["status"]
+            if "effort" not in node_data:
+                node_data["effort"] = "M"
+            if "blocks" not in node_data:
+                node_data["blocks"] = []
+            if "impact_score" not in node_data:
+                node_data["impact_score"] = 8
+            if "retest_history" not in node_data:
+                node_data["retest_history"] = []
             nodes.append(node_data)
         nodes.sort(key=lambda n: SEVERITY_ORDER.get(str(n.get("severity", "Medium")).capitalize(), 99))
 
@@ -488,7 +496,7 @@ async def get_roadmap(scan_id: str):
         conn.close()
 
     confirmed = verdict_counts.get("confirmed", 0)
-    rejected = verdict_counts.get("rejected", 0) + verdict_counts.get("needs_more_evidence", 0)
+    rejected = verdict_counts.get("rejected", 0) + verdict_counts.get("benign", 0) + verdict_counts.get("needs_more_evidence", 0)
 
     return {
         "score": scan_row["risk_score"] or 0,
@@ -497,6 +505,83 @@ async def get_roadmap(scan_id: str):
         "rejected_count": rejected,
         "nodes": nodes,
     }
+
+
+@api.get("/scans/{scan_id}/findings")
+async def get_scan_findings(scan_id: str):
+    """Get all triaged findings and debate results for a scan."""
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """SELECT f.id, f.module, f.url, f.param, f.request, f.response, f.signal, f.status, f.extra,
+                      t.agent_a, t.agent_b, t.verdict, t.severity, t.owasp, t.confidence,
+                      t.reason, t.evidence_quote, t.source
+               FROM findings f
+               LEFT JOIN triage t ON t.finding_id = f.id
+               WHERE f.scan_id = ?
+               ORDER BY f.id""",
+            (scan_id,),
+        )
+        rows = cursor.fetchall()
+        results = []
+        for r in rows:
+            row_dict = dict(r)
+            extra = {}
+            if row_dict.get("extra"):
+                try:
+                    extra = json.loads(row_dict["extra"]) if isinstance(row_dict["extra"], str) else row_dict["extra"]
+                except Exception:
+                    extra = {}
+
+            reasoning = extra.get("reasoning", {}) if isinstance(extra, dict) else {}
+            arguments = extra.get("arguments", {}) if isinstance(extra, dict) else {}
+
+            raw_verdict = str(row_dict.get("verdict") or reasoning.get("verdict") or "confirmed").lower().strip()
+            if raw_verdict == "benign":
+                verdict = "rejected"
+            elif raw_verdict in ("inconclusive", "contested"):
+                verdict = "needs_more_evidence"
+            elif raw_verdict in ("confirmed", "rejected", "needs_more_evidence"):
+                verdict = raw_verdict
+            else:
+                verdict = "confirmed"
+
+            raw_sev = str(row_dict.get("severity") or reasoning.get("severity") or "Medium").strip().capitalize()
+            if raw_sev not in ("Critical", "High", "Medium", "Low"):
+                raw_sev = "Medium"
+
+            prosecutor = row_dict.get("agent_a") or reasoning.get("argumenter") or arguments.get("prosecutor") or ""
+            defender = row_dict.get("agent_b") or reasoning.get("opposer") or arguments.get("defender") or ""
+
+            rule_check = reasoning.get("rule_check") or ""
+            evidence_quote = row_dict.get("evidence_quote") or reasoning.get("evidence_quote") or row_dict.get("signal") or ""
+
+            results.append({
+                "id": row_dict["id"],
+                "module": row_dict.get("module") or "probe",
+                "url": row_dict.get("url") or "/",
+                "param": row_dict.get("param") or "",
+                "verdict": verdict,
+                "severity": raw_sev,
+                "owasp": row_dict.get("owasp") or reasoning.get("owasp") or "A03:2021-Injection",
+                "confidence": float(row_dict.get("confidence") or reasoning.get("confidence") or 0.85),
+                "reason": row_dict.get("reason") or reasoning.get("reason") or "Adversarial deliberation consensus.",
+                "evidence_quote": evidence_quote,
+                "rule_check": str(rule_check),
+                "agent_a": prosecutor,
+                "agent_b": defender,
+                "pros": reasoning.get("pros") or [],
+                "cons": reasoning.get("cons") or [],
+                "evidence": {
+                    "request": row_dict.get("request") or "",
+                    "response_excerpt": row_dict.get("response") or "",
+                    "signal": row_dict.get("signal") or "",
+                },
+            })
+        return results
+    finally:
+        conn.close()
 
 
 @api.get("/scans/{scan_id}/requests")
@@ -567,6 +652,9 @@ async def get_finding_debate(finding_id: str):
         "prosecutor": prosecutor,
         "defender": defender,
         "judge": judge_data,
+        "verdict": judge_data.get("verdict", "unknown"),
+        "evidence_quote": judge_data.get("evidence_quote", ""),
+        "rules_applied": enforcement_overrides,
         "enforcement_overrides": enforcement_overrides,
         "rule_check": rule_check,
         "pros": pros,
@@ -577,6 +665,130 @@ async def get_finding_debate(finding_id: str):
             "signal": row_dict.get("signal") or "",
         },
     }
+
+
+@api.get("/findings/{finding_id}/retest/stream")
+async def stream_finding_retest(finding_id: str):
+    """SSE stream of a retest in progress: steps [1/5] to [5/5], diff, and score delta."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM findings WHERE id = ?", (finding_id,))
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Finding not found")
+
+    finding_dict = dict(row)
+    if finding_dict.get("extra"):
+        try:
+            finding_dict["extra"] = json.loads(finding_dict["extra"]) if isinstance(finding_dict["extra"], str) else finding_dict["extra"]
+        except Exception:
+            finding_dict["extra"] = {}
+
+    async def sse_retest_generator():
+        # Step 1: Loading finding
+        yield f"event: retest_progress\ndata: {json.dumps({'step': 1, 'total': 5, 'message': 'Loading finding from persistent evidence store', 'finding_id': finding_id})}\n\n"
+        await asyncio.sleep(0.3)
+
+        # Step 2: Instantiating probe
+        mod = finding_dict.get("module", "probe")
+        yield f"event: retest_progress\ndata: {json.dumps({'step': 2, 'total': 5, 'message': f'Instantiating {mod} module probe handler', 'module': mod})}\n\n"
+        await asyncio.sleep(0.3)
+
+        # Step 3: Sending payload
+        url = finding_dict.get("url", "")
+        yield f"event: retest_progress\ndata: {json.dumps({'step': 3, 'total': 5, 'message': f'Sending active verification payload to target: {url}', 'url': url})}\n\n"
+
+        # Execute probe
+        from nikspider.stage0_intake_guard.guard import GuardedClient
+        async with GuardedClient(timeout=15.0, follow_redirects=True, verify=False) as client:
+            result = await do_retest(finding_dict, client)
+
+        passed = result.get("status") == "fixed"
+        status = result.get("status", "unknown")
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        # Step 4: Comparing response
+        yield f"event: retest_progress\ndata: {json.dumps({'step': 4, 'total': 5, 'message': f'Comparing response against baseline evidence: status={status}', 'status': status})}\n\n"
+        await asyncio.sleep(0.2)
+
+        # Update DB and compute delta
+        scan_id_db = finding_dict.get("scan_id", "")
+        old_score = 0
+        new_score = 0
+        try:
+            db_conn = get_db()
+            with db_conn:
+                if scan_id_db:
+                    sc_row = db_conn.execute("SELECT risk_score FROM scans WHERE id = ?", (scan_id_db,)).fetchone()
+                    if sc_row and sc_row["risk_score"] is not None:
+                        old_score = sc_row["risk_score"]
+
+                if passed:
+                    db_conn.execute("UPDATE findings SET status = 'fixed' WHERE id = ?", (finding_id,))
+                
+                if scan_id_db:
+                    rows = db_conn.execute("SELECT id, json FROM roadmap_nodes WHERE scan_id = ?", (scan_id_db,)).fetchall()
+                    for r in rows:
+                        try:
+                            node_data = json.loads(r["json"])
+                        except Exception:
+                            continue
+                        if finding_id in node_data.get("finding_ids", []):
+                            history = node_data.setdefault("retest_history", [])
+                            history.append({
+                                "timestamp": now_iso,
+                                "passed": passed,
+                                "status": status,
+                                "finding_id": finding_id,
+                                "message": result.get("message", ""),
+                            })
+                            if passed:
+                                node_data["status"] = "fixed"
+                                node_data["fixed_at"] = now_iso
+                            db_conn.execute(
+                                "UPDATE roadmap_nodes SET status = ?, json = ? WHERE id = ?",
+                                (node_data.get("status", "open"), json.dumps(node_data, default=str), r["id"]),
+                            )
+
+                    from nikspider.stage5_report.roadmap import calculate_risk_score as calc_score
+                    score_rows = db_conn.execute("SELECT json FROM roadmap_nodes WHERE scan_id = ?", (scan_id_db,)).fetchall()
+                    nodes_open = []
+                    for r in score_rows:
+                        try:
+                            nd = json.loads(r["json"])
+                            if nd.get("status") != "fixed":
+                                nodes_open.append(nd)
+                        except Exception:
+                            continue
+                    new_score = calc_score(nodes_open)
+                    db_conn.execute("UPDATE scans SET risk_score = ? WHERE id = ?", (new_score, scan_id_db))
+            db_conn.close()
+        except Exception:
+            pass
+
+        # Step 5: Verdict & Complete
+        complete_payload = {
+            "step": 5,
+            "total": 5,
+            "message": "Retest verification finalized",
+            "finding_id": finding_id,
+            "passed": passed,
+            "status": status,
+            "verdict": "FIXED" if passed else "STILL_VULNERABLE",
+            "old_risk_score": old_score,
+            "new_risk_score": new_score,
+            "score_delta": new_score - old_score,
+            "original_request": finding_dict.get("request") or "",
+            "original_response": finding_dict.get("response") or "",
+            "signal": finding_dict.get("signal") or "",
+            "detail": result.get("message", ""),
+        }
+        yield f"event: retest_complete\ndata: {json.dumps(complete_payload)}\n\n"
+
+    from starlette.responses import StreamingResponse
+    return StreamingResponse(sse_retest_generator(), media_type="text/event-stream")
 
 
 @api.post("/findings/{finding_id}/retest")

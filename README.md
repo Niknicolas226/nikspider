@@ -16,6 +16,8 @@ NikSpider is an end-to-end autonomous web application security assessment platfo
 - 🔄 **1-Click Live Retest Engine (Stage 6)**: Re-executes the exact probe module against the live target to verify the patch, automatically updating the node status to **`FIXED`** and recalculating the risk score.
 - 🎮 **Interactive Spider Control Surface UI**: Dark glassmorphic command center with a functional, reactive spider mascot featuring **8 module-probe legs**, **4 severity eyes**, an **anchored Spider AI mini-chat**, **drag-to-retest**, and **live request photon telemetry**.
 
+> 📖 **Deep Architectural Guide & Meta Models Reference**: For a comprehensive, in-depth breakdown of how NikSpider works under the hood and how it leverages **Meta AI Models (`muse-spark-1.3` & `muse-wonder-1.0`)** across every stage, see [docs/DEEP_UNDERSTANDING_AND_META_MODELS.md](docs/DEEP_UNDERSTANDING_AND_META_MODELS.md).
+
 ---
 
 ## 🏛️ System Architecture

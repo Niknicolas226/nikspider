@@ -15,7 +15,7 @@ import {
   sortRoadmapNodes,
   calculateProjectedScore,
 } from '../../utils/roadmapUtils';
-import { retestFindingDetailed } from '../../api/client';
+import { retestFindingDetailed, getRoadmap } from '../../api/client';
 import {
   ListChecks,
   GitBranch,
@@ -42,6 +42,16 @@ export const FixRoadmapPage: React.FC = () => {
   const [hoveredNode, setHoveredNode] = useState<RoadmapNode | null>(null);
   const [retestingNodeId, setRetestingNodeId] = useState<string | null>(null);
   const [isRetestingAllFixed, setIsRetestingAllFixed] = useState(false);
+
+  React.useEffect(() => {
+    if (scanId && roadmap.nodes.length === 0) {
+      getRoadmap(scanId).then((data) => {
+        if (data && data.nodes && data.nodes.length > 0) {
+          scanStore.dispatch({ type: 'SET_ROADMAP', payload: data });
+        }
+      });
+    }
+  }, [scanId, roadmap.nodes.length]);
 
   // Derive initial scan score from raw count or max
   const initialScore = Math.max(riskScore, roadmap.score || 0);

@@ -160,6 +160,13 @@ export const DebateThread: React.FC<DebateThreadProps> = ({ finding }) => {
         </div>
 
         <div className="flex items-center gap-2">
+          {loading && (
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-purple-900/30 text-purple-300 text-[10px] border border-purple-500/30">
+              <Loader2 className="w-3 h-3 animate-spin text-purple-400" />
+              <span>Syncing transcript...</span>
+            </div>
+          )}
+
           {hasAnyTranscript && (
             <>
               <button
@@ -204,7 +211,7 @@ export const DebateThread: React.FC<DebateThreadProps> = ({ finding }) => {
         </div>
       </div>
 
-      {loading && (
+      {loading && !hasAnyTranscript && (
         <div className="p-8 text-center text-xs font-mono text-purple-300 flex items-center justify-center gap-2 bg-purple-950/20 border border-purple-500/20 rounded-xl">
           <Loader2 className="w-4 h-4 animate-spin text-purple-400" />
           <span>Synchronizing grounded debate transcripts from engine...</span>
@@ -212,7 +219,7 @@ export const DebateThread: React.FC<DebateThreadProps> = ({ finding }) => {
       )}
 
       {/* Messages list */}
-      {isExpanded && !loading && (
+      {isExpanded && (!loading || hasAnyTranscript) && (
         <div className="space-y-3">
           {!hasAnyTranscript ? (
             <div className="p-8 text-center text-xs font-mono text-zinc-500 border border-dashed border-zinc-800 rounded-xl bg-black/40">
